@@ -31,7 +31,7 @@ UserModel = import_from_string(getattr(settings, 'USER_MODEL', 'Document'))
 
 
 
-class Grant(EmbeddedDocument):
+class Grant(Document):
     """
     Default grant implementation. A grant is a code that can be swapped for an
     access token. Grants have a limited lifetime as defined by
@@ -45,7 +45,7 @@ class Grant(EmbeddedDocument):
     scope = IntField(default=0)
 
 
-class RefreshAccessToken(EmbeddedDocument):
+class RefreshAccessToken(Document):
     """
     Default refresh token implementation. A refresh token can be swapped for a
     new access token when said token expires.
@@ -54,7 +54,7 @@ class RefreshAccessToken(EmbeddedDocument):
     expired = BooleanField(default=False)
 
 
-class AccessToken(EmbeddedDocument):
+class AccessToken(Document):
     """
     Default access token implementation. An access token is a time limited
     token to access a user's resources.
@@ -67,9 +67,9 @@ class AccessToken(EmbeddedDocument):
         expiry
     """
     token = StringField(max_length=255, default=long_token, db_index=True)
-    expires = DateTimeField()
+    expires = DateTimeField(default=self.get_expire_delta())
     scope = IntField(default=SCOPES[0][0], choices=SCOPES)
-    refresh_access_token = EmbeddedDocumentField(RefreshAccessToken)
+    refresh_access_token = ListField(ReferenceField('RefreshAccessToken'))
 
     def get_expire_delta(self, reference=None):
         """
@@ -95,14 +95,14 @@ class AccessToken(EmbeddedDocument):
 
 
 
-class Client(EmbeddedDocument):
+class Client(Document):
     """
     Default client implementation.
 
     Clients are outlined in the :rfc:`2` and its subsections.
     """
-    grant = ListField(EmbeddedDocumentField(Grant), default=[])
-    access_token = ListField(EmbeddedDocumentField(AccessToken), default=[])
+    grant = ListField(ReferenceField('Grant'))
+    access_token = ListField(ReferenceField('AccessToken'))
     name = StringField(max_length=255)
     url = StringField()
     redirect_uri = StringField()
@@ -152,7 +152,14 @@ class Client(EmbeddedDocument):
 
 class User(UserModel):
     #TODO Inherit From Settings User
-    client = ListField(EmbeddedDocumentField(Client))
+    #client = ListField(EmbeddedDocumentField(Client))
+    client = ListField(ReferenceField(Client))
+    grant = ListField(ReferenceField('Grant'))
+    refresh_token = ListField(ReferenceField('RefreshAccessToken'))
+    access_token = ListField(ReferenceField('AccessToken'))
+
+
+
 
 
 
